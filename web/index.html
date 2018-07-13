@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+ <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="./res/img/favicon.ico">
+
+    <title>CupCake库存查询</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="res/bootstrap-3.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+<body>
+	<div class="jumbotron">
+		<div class="container">
+			<div class="row">
+				<div class="col-lg-12">
+					<div class="input-group">
+						<input type="text" id="keyword" class="form-control"  placeholder="产品编号、产品名称">
+						<span class="input-group-btn">
+							<button class="btn btn-default" type="button" id="btnSearch">查询</button>
+						</span>
+					</div>
+                    <div class="input-group">
+                        <input type="text" id="password" class="form-control"  placeholder="密码">
+                        <span class="input-group-btn">
+							<button class="btn btn-default" type="button" id="btnSell">卖出</button>
+						</span>
+                        <span class="input-group-btn">
+							<button class="btn btn-default" type="button" id="btnBuy">买入</button>
+						</span>
+                    </div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="container no-table-responsive">
+		<table
+			class="table table-striped table-bordered table-condensed table-hover">
+			<thead>
+				<tr style="text-align:center;font-style:800;">
+					<th>产品编号</th>
+					<td>产品名称</td>
+					<td>品牌</td>
+					<td>剩余库存</td>
+					<td>添加</td>
+					<td>数量</td>
+				</tr>
+			</thead>
+			<tbody id="list">
+			</tbody>
+			<!-- <tfoot>
+				<tr>
+					<td colspan="5">
+						<div class="btn-group" style="float: right;">
+							<button type="button" class="btn btn-default" id="currentPage">第1/100页</button>
+							<button type="button" class="btn btn-default" id="firstPage">首页</button>
+							<button type="button" class="btn btn-default" id="previousPage">上一页</button>
+							<button type="button" class="btn btn-default" id="nextPage">下一页</button>
+							<button type="button" class="btn btn-default" id="lastPage">尾页</button>
+							<button type="button" class="btn btn-default" id="gotoPage">跳转</button>
+							<input type="text" class="form-control" id="gotopage_text"
+								style="width: 80px; display: inline-block" placeholder="页码">
+							<input type="hidden" id="hidetxt" value="" />
+						</div>
+					</td>
+				</tr>
+			</tfoot> -->
+		</table>
+	</div>
+	<!-- Bootstrap core JavaScript
+    ================================================== -->
+
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="./res/js/jquery-1.11.3/jquery-1.11.3.min.js"></script>
+    <script src="./res/bootstrap-3.3.5/dist/js/bootstrap.min.js"></script>
+	<script src="./res/js/js-base64-master/base64.js"></script>
+
+	<script>
+        $(function () {
+            $("#btnSearch").click(search);
+        })
+        function search() {
+            var val=$("#keyword").val().trim();
+            $.ajax({
+                url:"./selectAllProduct.do",
+                type:"get",
+                dataType:"json",
+                data:{
+                    "keyword":val,
+                },
+                error:function (result) {
+                    alert(result.status);
+                },
+                success:function(result){
+                    $("#list").html("");
+                    $(result.data).each(function (index,product) {
+                        var str="<tr><td>" +(product.productid)+
+							"</td><td>" +product.productname+
+							"</td><td>" +product.suppliername+
+							"</td><td>" +product.quantity+
+							"</td><td>"+"<button class="+"btn btn-default"+ " type="+"button" +" id="+"addCart"+index+" onclick=addProductQuantity("+index+")"+">+</button>"+
+                            "</td><td>" +"<input type=\"text\" id="+"quantity"+index+" class=\"form-control\"  value=\"0\" > "+
+							"</td></tr>";
+                        $("#list").append(str);
+                    });
+                }
+            });
+        }
+
+        function addProductQuantity(index){
+            var quantityid="quantity"+index;
+            var selector="#"+quantityid;
+            var quantity=$(selector).val();
+            quantity=parseInt(quantity)+1;
+            $(selector).attr("value",quantity);
+		}
+
+        $(function () {
+            $("#btnSell").click(verifyPwdBySell);
+        })
+        function verifyPwdBySell() {
+            var pwd=$("#password").val();
+            if(pwd.length==0){
+                alert("密码不能为空！");
+                return;
+            }
+            var json_usr={"name":"sales","pwd":pwd};
+            var json_usrstr=JSON.stringify(json_usr);
+            $.ajax({
+                url:"./loginByNameAndPwd.do",
+                type:"post",
+                dataType:"json",
+                async:false,
+                data:{
+                    "user_json":json_usrstr,
+                },
+                error:function (result) {
+                    alert("执行异常");
+                },
+                success:function(result){
+                    if(parseInt(result.status)==parseInt(0)){
+                        addCart();
+                    }
+
+                }
+            });
+        }
+        function addCart() {
+            var deliverydetailList=[];
+            $('#list tr').each(function(i){                   // 遍历 tr
+				var productid=$(this).children('td')[0].innerText;
+				var num=$(this).children('td')[5].firstChild.value;
+				if(parseInt(num)>0){
+                    deliverydetailList.push({"productid":productid,"customerid":"1","quantity":num});
+				}
+
+			});
+            var deliverydetailListstr=JSON.stringify(deliverydetailList);
+            $.ajax({
+                url:"./addDeliveryMaster.do",
+                type:"get",
+                dataType:"json",
+                data:{
+                    "dm_json":deliverydetailListstr,
+                },
+                error:function (result) {
+                    alert(result.status);
+                },
+                success:function(result){
+
+                    location.reload();
+                }
+            });
+        }
+        $(function () {
+            $("#btnBuy").click(verifyPwdByBuy);
+        })
+        function verifyPwdByBuy() {
+            var pwd=$("#password").val();
+            if(pwd.length==0){
+                alert("密码不能为空！");
+                return;
+            }
+            var json_usr={"name":"sales","pwd":pwd};
+            var json_usrstr=JSON.stringify(json_usr);
+            $.ajax({
+                url:"./loginByNameAndPwd.do",
+                type:"post",
+                dataType:"json",
+                async:false,
+                data:{
+                    "user_json":json_usrstr,
+                },
+                error:function (result) {
+                    alert("执行异常");
+                },
+                success:function(result){
+                    if(parseInt(result.status)==parseInt(0)){
+                        buyCart();
+                    }
+
+                }
+            });
+        }
+        function buyCart() {
+            var purchaselist=[];
+            $('#list tr').each(function(i){                   // 遍历 tr
+                var productid=$(this).children('td')[0].innerText;
+                var suppliername=$(this).children('td')[2].innerText;
+                var num=$(this).children('td')[5].firstChild.value;
+                if(parseInt(num)>0){
+                    purchaselist.push({"productid":productid,"customerid":"1","quantity":num,"suppliername":suppliername});
+                }
+
+            });
+            var purchaselistStr=JSON.stringify(purchaselist);
+			$.ajax({
+                url:"./addPurchaseInfo.do",
+                type:"get",
+                dataType:"json",
+                data:{
+                    "pl_json":purchaselistStr,
+                },
+                error:function (result) {
+                    alert(result.status);
+                },
+                success:function(result){
+
+                    location.reload();
+
+
+                }
+            });
+        }
+
+        function alertStock() {
+            $.ajax({
+                url:"./getHotProductStockAlarm.do",
+                type:"get",
+                dataType:"json",
+                data:{
+                },
+                error:function (result) {
+                    alert(result.status);
+                },
+                success:function(result){
+                    $("#list").html("");
+                    $(result.data).each(function (index,product) {
+                        var str="<tr><td>" +(product.productid)+
+                            "</td><td>" +product.productname+
+                            "</td><td>" +product.suppliername+
+                            "</td><td>" +product.quantity+
+                            "</td><td>" +""+
+                            "</td><td>" +""+
+                            "</td></tr>";
+                        $("#list").append(str);
+                    });
+
+
+                }
+            });
+        }
+
+
+
+
+        window.onload = function(){
+            alertStock();
+        }
+
+	</script>
+
+</body>
+</html>
